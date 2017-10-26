@@ -9,11 +9,11 @@ unset match
 for board in /sys/class/board-info/*; do
     model=$(cat $board/uevent | grep BOARD_INFO_MODEL= | cut -s -d = -f 2)
     if [ "$model" == "Dexter Industries BrickPi3" ]; then
-	if [ -n "$match" ]; then
-	    echo "Error: More than one BrickPi3 is attached." 1>&2
-            exit 1
-	fi
-	match=$model
+    if [ -n "$match" ]; then
+        echo "Error: More than one BrickPi3 is attached." 1>&2
+        exit 1
+    fi
+    match=$model
         fw_ver=$(cat $board/uevent | grep BOARD_INFO_FW_VER= | cut -s -d = -f 2)
     fi
 done
@@ -23,21 +23,26 @@ if [ "$model" != "Dexter Industries BrickPi3" ]; then
     exit 1
 fi
 
+# See https://www.raspberrypi.org/documentation/hardware/raspberrypi/revision-codes/README.md
 revision=$(cat /proc/cpuinfo | grep Revision | cut -s -d : -f 2 | tr -d [:space:])
-# Bit 23 means "new model" or something like that, not sure what other bits mean
-# https://github.com/raspberrypi/firmware/issues/705#issuecomment-339516857
-# just guessing for now
-revision=$(printf %x $(((0x$revision >> 20) & 0xf)))
+new_style=$(((0x$revision >> 23) & 0x1))
 
-# https://elinux.org/RPi_HardwareHistory
-# RPi2/3 have revision a?????
-# RPi Zero has revision 9?????
-# RPi 1 has revision ????
-
-if [ "$revision" == "a" ]; then
-    interface_file="raspberrypi2-native.cfg"
-else
-    interface_file="raspberrypi-native.cfg"
+interface_file="raspberrypi-native.cfg"
+if [ "$new_style" == "1" ]; then
+    processor="${revision: -4:-3}"
+    case $processor in
+        0)
+            # BCM2835
+            ;;
+        1|2)
+            # BCM2836/BCM2837
+            interface_file="raspberrypi2-native.cfg"
+            ;;
+        *)
+            echo "Error: Unknown processor." 1>&2
+            exit 1
+            ;;
+    esac
 fi
 
 pkg_ver=$(dpkg-query --show firmware-brickpi3 | cut -f 2 | tr -d [:space:] | sed -e s/ev3dev.*//)
