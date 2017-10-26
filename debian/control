@@ -1,0 +1,15 @@
+Source: firmware-brickpi3
+Priority: optional
+Maintainer: David Lechner <david@lechnology.com>
+Build-Depends: debhelper (>= 10.0.0)
+Standards-Version: 3.9.8
+Section: embedded
+Homepage: http://www.ev3dev.org
+Vcs-Git: git://github.com/ev3dev/firmware-brickpi3.git
+Vcs-Browser: https://github.com/ev3dev/firmware-brickpi3
+
+Package: firmware-brickpi3
+Architecture: armhf
+Depends: ${misc:Depends}, openocd
+Description: Firmware for Dexter Industries BrickPi3
+ This package is only useful for Dexter Industries BrickPi3.

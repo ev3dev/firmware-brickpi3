@@ -1,0 +1,5 @@
+firmware-brickpi3 (1.4.6ev3dev1) testing; urgency=medium
+
+  * Initial release.
+
+ -- David Lechner <david@lechnology.com>  Wed, 25 Oct 2017 22:45:19 -0500

@@ -1,0 +1,62 @@
+#!/bin/bash
+
+set -e
+
+fw_file="/lib/firmware/brickpi3_firmware.bin"
+
+unset model
+
+for board in /sys/class/board-info/*; do
+    if [ "$model" == "Dexter Industries BrickPi3" ]; then
+        echo "Error: More than one BrickPi3 is attached." 1>&2
+        exit 1
+    fi
+    model=$(cat $board/uevent | grep BOARD_INFO_MODEL= | cut -s -d = -f 2 | tr -d [:space:])
+    fw_ver=$(cat $board/uevent | grep BOARD_INFO_MODEL= | cut -s -d = -f 2 | tr -d [:space:])
+done
+
+if [ "$model" != "Dexter Industries BrickPi3" ]; then
+    echo "Error: No BrickPi3 is attached." 1>&2
+    exit 1
+fi
+
+revision=$(cat /proc/cpuinfo | grep Revision: | cut -s -d : -f 2 | tr -d [:space:])
+# Bit 23 means "new model" or something like that, not sure what other bits mean
+# https://github.com/raspberrypi/firmware/issues/705#issuecomment-339516857
+# just guessing for now
+revision=$(printf %x $(((0x$revision >> 20) & 0xf)))
+
+# https://elinux.org/RPi_HardwareHistory
+# RPi2/3 have revision a?????
+# RPi Zero has revision 9?????
+# RPi 1 has revision ????
+
+if [ "$revision" == "a" ]; then
+    interface_file="raspberrypi2-native.cfg"
+else
+    interface_file="raspberrypi-native.cfg"
+fi
+
+pkg_ver=$(dpkg-query --show firmware-brickpi3 | cut -f 2 | tr -d [:space:] | sed -e s/ev3dev.*//)
+
+echo "Current version: $fw_ver"
+echo "New version:     $pkg_ver"
+read -p "Are you sure you want to continue? [yN] " response
+case $response in
+    Y|y) ;;
+    *) exit 1 ;;
+esac
+
+# make sure the drivers are not talking to the BrickPi3 while we are updating the firmware
+echo brickpi3_battery > "/sys/module/brickpi3_battery/drivers/platform:brickpi3-battery/unbind"
+echo spi0.1 > "/sys/module/brickpi3/drivers/spi:brickpi3/unbind"
+
+# Comes from https://github.com/DexterInd/BrickPi3/blob/master/Firmware/brickpi3samd_flash_firmware.sh
+openocd -s openocd -f interface/$interface_file \
+    -c "transport select swd; set CHIPNAME at91samd21j18; source [find target/at91samdXX.cfg]; adapter_khz 50; adapter_nsrst_delay 100; adapter_nsrst_assert_width 100" \
+    -c "init; targets; reset halt; program $fw_file verify; reset" \
+    -c "shutdown"
+
+# Restart the BrickPi3 drivers
+echo spi0.1 > "/sys/module/brickpi3/drivers/spi:brickpi3/bind"
+echo brickpi3_battery > "/sys/module/brickpi3_battery/drivers/platform:brickpi3-battery/bind"
