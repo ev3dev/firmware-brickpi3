@@ -1,3 +1,9 @@
+firmware-brickpi3 (1.4.6ev3dev2) testing; urgency=medium
+
+  * Fix issues with update-brickpi3-fw script
+
+ -- David Lechner <david@lechnology.com>  Wed, 25 Oct 2017 23:31:38 -0500
+
 firmware-brickpi3 (1.4.6ev3dev1) testing; urgency=medium
 
   * Initial release.
